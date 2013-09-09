@@ -35,29 +35,28 @@ type pushBotRequest struct {
 type PushBots struct {
 	AppId  string
 	Secret string
+	Debug  bool
 }
 
 // A struct to contain all arguments for a request
 type apiRequest struct {
-	Payload                 map[string]interface{}
-	Token                   string   `json:"token,omitempty"`
-	Platform                string   `json:"platform,omitempty"`
-	Badge                   string   `json:"badge,omitempty"`
-	Sound                   string   `json:"sound,omitempty"`
-	Alias                   string   `json:"alias,omitempty"`
-	ExceptAlias             string   `json:"except_alias,omitempty"`
-	Tag                     string   `json:"tag,omitempty"`
-	Lat                     string   `json:"lat,omitempty"`
-	Lng                     string   `json:"lng,omitempty"`
-	Msg                     string   `json:"msg,omitempty"`
-	NotificationType        string   `json:"active,omitempty"`
-	Stats                   string   `json:"stats,omitempty"`
-	Tags                    []string `json:"tags,omitempty"`
-	ExceptTags              []string `json:"except_tags,omitempty"`
-	NotificationTypes       []string `json:"active,omitempty"`
-	ExceptNotificationTypes []string `json:"except_active,omitempty"`
-	Platforms               []string `json:"platforms,omitempty"`
-	BadgeCount              *int     `json:"setbadgecount,omitempty"` //Hack to avoid badgecount being omitted if it's value is 0
+	Payload                 map[string]interface{} `json:"payload,omitempty"`
+	Token                   string                 `json:"token,omitempty"`
+	Platform                interface{}            `json:"platform,omitempty"` // Sometimes string sometimes []string
+	Badge                   string                 `json:"badge,omitempty"`
+	Sound                   string                 `json:"sound,omitempty"`
+	Alias                   string                 `json:"alias,omitempty"`
+	ExceptAlias             string                 `json:"except_alias,omitempty"`
+	Tag                     string                 `json:"tag,omitempty"`
+	Lat                     string                 `json:"lat,omitempty"`
+	Lng                     string                 `json:"lng,omitempty"`
+	Msg                     string                 `json:"msg,omitempty"`
+	NotificationType        interface{}            `json:"active,omitempty"` // Sometimes string sometimes []string
+	Stats                   string                 `json:"stats,omitempty"`
+	Tags                    []string               `json:"tags,omitempty"`
+	ExceptTags              []string               `json:"except_tags,omitempty"`
+	ExceptNotificationTypes []string               `json:"except_active,omitempty"`
+	BadgeCount              *int                   `json:"setbadgecount,omitempty"` //Hack to avoid badgecount being omitted if it's value is 0
 }
 
 func init() {
@@ -90,12 +89,15 @@ func (pushbots *PushBots) RegisterDevice(token, platform, lat, lng string, notif
 	}
 
 	args := apiRequest{
-		Token:             token,
-		Platform:          platform,
-		Lat:               lat,
-		Lng:               lng,
-		NotificationTypes: notificationTypes,
-		Tags:              tags,
+		Token:    token,
+		Platform: platform,
+		Lat:      lat,
+		Lng:      lng,
+		Tags:     tags,
+	}
+
+	if notificationTypes != nil && len(notificationTypes) > 0 {
+		args.NotificationType = notificationTypes
 	}
 
 	return pushbots.sendToEndpoint("registerdevice", args)
@@ -243,11 +245,11 @@ func (pushbots *PushBots) Broadcast(platforms []string, msg, sound, badge string
 	}
 
 	args := apiRequest{
-		Platforms: platforms,
-		Msg:       msg,
-		Badge:     badge,
-		Sound:     sound,
-		Payload:   payload,
+		Platform: platforms,
+		Msg:      msg,
+		Badge:    badge,
+		Sound:    sound,
+		Payload:  payload,
 	}
 
 	return pushbots.sendToEndpoint("broadcast", args)
@@ -283,7 +285,7 @@ func (pushbots *PushBots) SendPushToDevice(platform, token, msg, sound, badge st
 		Badge:    badge,
 		Payload:  payload,
 	}
-
+	fmt.Println(args.Platform)
 	return pushbots.sendToEndpoint("broadcast", args)
 }
 
@@ -318,7 +320,7 @@ func (pushbots *PushBots) Batch(platform, msg, sound, badge string, tags, except
 		Badge:                   badge,
 		Tags:                    tags,
 		ExceptTags:              exceptTags,
-		NotificationTypes:       notificationTypes,
+		NotificationType:        notificationTypes,
 		ExceptNotificationTypes: exceptNotificationTypes,
 	}
 
@@ -368,7 +370,10 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 		return err
 	}
 
-	fmt.Println(string(jsonPayload))
+	if pushbots.Debug == true {
+
+		fmt.Println("Sending JSON:", string(jsonPayload))
+	}
 
 	req, err := http.NewRequest(pushbotEndpoint.HttpVerb, pushbotEndpoint.Endpoint, strings.NewReader(string(jsonPayload)))
 
@@ -390,8 +395,11 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	fmt.Println("Fick", string(body))
-	fmt.Println(resp)
+
+	if pushbots.Debug == true {
+		fmt.Println("Response object:", resp)
+		fmt.Println("Response content", string(body))
+	}
 
 	if resp.StatusCode != 200 {
 
@@ -405,7 +413,9 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 }
 
 // Checks for errors within arguments
-func checkForArgErrors(token, platform string) error {
+func checkForArgErrors(tokenInterface interface{}, platform string) error {
+	token := tokenInterface.(string)
+
 	if token == "" {
 		return errors.New("Token needs to be a device token")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
@@ -416,7 +426,9 @@ func checkForArgErrors(token, platform string) error {
 }
 
 // Checks for errors when either a token or an alias is required
-func checkForArgErrorsWithAlias(token, platform, alias string) error {
+func checkForArgErrorsWithAlias(tokenInterface interface{}, platform, alias string) error {
+
+	token := tokenInterface.(string)
 	if token == "" && alias == "" {
 		return errors.New("Either token or alias need to be set")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
