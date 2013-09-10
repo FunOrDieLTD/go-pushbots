@@ -121,7 +121,9 @@ func (pushbots *PushBots) UnregisterDevice(token, platform string) error {
 
 // Add a tag to a device
 func (pushbots *PushBots) TagDevice(token, alias, platform, tag string) error {
+
 	if err := checkForArgErrorsWithAlias(token, platform, alias); err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -285,7 +287,6 @@ func (pushbots *PushBots) SendPushToDevice(platform, token, msg, sound, badge st
 		Badge:    badge,
 		Payload:  payload,
 	}
-	fmt.Println(args.Platform)
 	return pushbots.sendToEndpoint("broadcast", args)
 }
 
@@ -312,6 +313,7 @@ func (pushbots *PushBots) Batch(platform, msg, sound, badge string, tags, except
 	}
 
 	args := apiRequest{
+		Payload:                 payload,
 		Alias:                   alias,
 		ExceptAlias:             exceptAlias,
 		Platform:                platform,
@@ -419,7 +421,6 @@ func checkForArgErrors(tokenInterface interface{}, platform string) error {
 	if token == "" {
 		return errors.New("Token needs to be a device token")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
-		fmt.Println(platform)
 		return errors.New("Platform must be either PlatformIos or PlatformAndroid")
 	}
 	return nil
@@ -432,7 +433,6 @@ func checkForArgErrorsWithAlias(tokenInterface interface{}, platform, alias stri
 	if token == "" && alias == "" {
 		return errors.New("Either token or alias need to be set")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
-		fmt.Println(platform)
 		return errors.New("Platform must be either PlatformIos or PlatformAndroid")
 	}
 
