@@ -18,6 +18,8 @@ import (
 
 // Holds a list of available end points
 var endpoints map[string]pushBotRequest
+var productionEndPointBase = "https://api.pushbots.com/"
+var testingEndpointBase = "127.0.0.1:31337/"
 
 // Constants for the different platforms supported
 const (
@@ -33,9 +35,10 @@ type pushBotRequest struct {
 
 // Holds the appid and app secret for use in requests
 type PushBots struct {
-	AppId  string
-	Secret string
-	Debug  bool
+	AppId   string
+	Secret  string
+	Debug   bool
+	Testing bool
 }
 
 // A struct to contain all arguments for a request
@@ -59,26 +62,34 @@ type apiRequest struct {
 	BadgeCount              *int                   `json:"setbadgecount,omitempty"` //Hack to avoid badgecount being omitted if it's value is 0
 }
 
-func init() {
-	initializeEndpoints()
+func NewPushbots(appId string, secret string, debug, testing bool) PushBots {
+	pushBots := PushBots{AppId: appId, Secret: secret, Debug: debug, Testing: testing}
+	pushBots.initializeEndpoints()
+	return pushBots
 }
 
 // Initializes all known endpoints
-func initializeEndpoints() {
+func (pushBots *PushBots) initializeEndpoints() {
+	endPointBase := productionEndPointBase
+
+	if pushBots.Testing == true {
+		endPointBase = testingEndpointBase
+	}
+
 	endpoints = map[string]pushBotRequest{
-		"registerdevice":         pushBotRequest{Endpoint: "https://api.pushbots.com/deviceToken", HttpVerb: "PUT"},
-		"unregisterdevice":       pushBotRequest{Endpoint: "https://api.pushbots.com/deviceToken/del", HttpVerb: "PUT"},
-		"alias":                  pushBotRequest{Endpoint: "https://api.pushbots.com/alias", HttpVerb: "PUT"},
-		"tagdevice":              pushBotRequest{Endpoint: "https://api.pushbots.com/tag", HttpVerb: "PUT"},
-		"untagdevice":            pushBotRequest{Endpoint: "https://api.pushbots.com/tag/del", HttpVerb: "PUT"},
-		"geos":                   pushBotRequest{Endpoint: "https://api.pushbots.com/geo", HttpVerb: "PUT"},
-		"addnotificationtype":    pushBotRequest{Endpoint: "https://api.pushbots.com/activate", HttpVerb: "PUT"},
-		"removenotificationtype": pushBotRequest{Endpoint: "https://api.pushbots.com/deactivate", HttpVerb: "PUT"},
-		"broadcast":              pushBotRequest{Endpoint: "https://api.pushbots.com/push/all", HttpVerb: "POST"},
-		"pushone":                pushBotRequest{Endpoint: "https://api.pushbots.com/push/one", HttpVerb: "POST"},
-		"batch":                  pushBotRequest{Endpoint: "https://api.pushbots.com/push/all", HttpVerb: "POST"},
-		"badge":                  pushBotRequest{Endpoint: "https://api.pushbots.com/badge", HttpVerb: "PUT"},
-		"recordanalytics":        pushBotRequest{Endpoint: "https://api.pushbots.com/stats", HttpVerb: "PUT"},
+		"registerdevice":         pushBotRequest{Endpoint: endPointBase + "deviceToken", HttpVerb: "PUT"},
+		"unregisterdevice":       pushBotRequest{Endpoint: endPointBase + "deviceToken/del", HttpVerb: "PUT"},
+		"alias":                  pushBotRequest{Endpoint: endPointBase + "alias", HttpVerb: "PUT"},
+		"tagdevice":              pushBotRequest{Endpoint: endPointBase + "tag", HttpVerb: "PUT"},
+		"untagdevice":            pushBotRequest{Endpoint: endPointBase + "tag/del", HttpVerb: "PUT"},
+		"geos":                   pushBotRequest{Endpoint: endPointBase + "geo", HttpVerb: "PUT"},
+		"addnotificationtype":    pushBotRequest{Endpoint: endPointBase + "activate", HttpVerb: "PUT"},
+		"removenotificationtype": pushBotRequest{Endpoint: endPointBase + "deactivate", HttpVerb: "PUT"},
+		"broadcast":              pushBotRequest{Endpoint: endPointBase + "push/all", HttpVerb: "POST"},
+		"pushone":                pushBotRequest{Endpoint: endPointBase + "push/one", HttpVerb: "POST"},
+		"batch":                  pushBotRequest{Endpoint: endPointBase + "push/all", HttpVerb: "POST"},
+		"badge":                  pushBotRequest{Endpoint: endPointBase + "badge", HttpVerb: "PUT"},
+		"recordanalytics":        pushBotRequest{Endpoint: endPointBase + "stats", HttpVerb: "PUT"},
 	}
 }
 
