@@ -42,7 +42,7 @@ type PushBots struct {
 }
 
 type serverErrorResponse struct {
-	Message string `json:"message"`
+	Message interface{} `json:"message"`
 }
 
 // A struct to contain all arguments for a request
@@ -475,7 +475,14 @@ func checkAndReturn(content []byte, err error) error {
 		if serverErr.Message == "" {
 			return errors.New("Got response from server but failed to parse")
 		} else {
-			return errors.New(serverErr.Message)
+			switch serverErr.Message.(type) {
+			case string:
+				return errors.New(serverErr.Message.(string))
+			case map[string]interface{}:
+				return fmt.Errorf("A server error occurred: %s", string(content))
+			default:
+				return fmt.Errorf("Could not parse server message: %s", string(content))
+			}
 		}
 	}
 	return nil
