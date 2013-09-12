@@ -5,6 +5,9 @@
 
 A unofficial implementation around Pushbots service for sending APN in golang. 
 
+### Documentation
+http://godoc.org/github.com/FunOrDieLTD/go-pushbots
+
 ### Setup
 1. Sign up with pushbots at https://pushbots.com
 
@@ -16,32 +19,43 @@ A unofficial implementation around Pushbots service for sending APN in golang.
 #### Registering a IOS device
 
 ```go
-package main
+	var appId string = "your app id"
+	var secret string = "your secret"
 
-import (
-	"github.com/FunOrDieLTD/go-pushbots"
-	"log"
-)
-
-func main() {
-	appId := "Your app id"
-	secret := "Your secret"
 	deviceToken := "Your device token"
 	pushBots := pushbots.NewPushBots(appId, secret, true) // true enables debugging
 	deviceToken = "Your device token"
 
-	err := pushBots.RegisterDevice(deviceToken, pushbots.PlatformIos, "", "", []string{}, []string{}, "")
+	err := pushBots.RegisterDevice(deviceToken, pushbots.PlatformIos, "", "", []string{}, []string{}, "") // Registers an ios device using only it's token
 	if err != nil {
 		log.Fatal(err)
 	}
 
-}
+```
+
+#### Tagging a device
+```go
+	var appId string = "your app id"
+	var secret string = "your secret"
+
+	deviceToken := "Your device token"
+	pushBots := pushbots.NewPushBots(appId, secret, true) // true enables debugging
+	deviceToken = "Your device token"
+	tag := "your_new_tag"
+
+	err := pushBots.TagDevice(deviceToken, pushbots.PlatformIos, "", tag)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 ```
+
 #### Sending a push to a single device
 ```go
-	appId := "Your app id"
-	secret := "Your secret"
+	var appId string = "your app id"
+	var secret string = "your secret"
+
 	deviceToken := "Your device token"
 	msg := "Your message"
 	sound := "your_sound"
@@ -57,12 +71,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-```
 
+```
 #### Broadcasting a push to all devices
 ```go
-	appId := "Your app id"
-	secret := "Your secret"
+	var appId string = "your app id"
+	var secret string = "your secret"
+
 	msg := "Your message"
 	sound := "your_sound"
 	badge := "0"
@@ -71,24 +86,12 @@ func main() {
 		"your": "custom data here",
 	}
 
-	platforms := []string{PlatformIos}
+	pushBots := pushbots.NewPushBots(appId, secret, true)
 
-	shouldEqual := map[string]interface{}{
-		"platform": stringSliceToInterfaceSlice(platforms),
-		"msg":      msg,
-		"badge":    badge,
-		"sound":    sound,
-		"payload":  payload,
-	}
-
-	pushBots := NewPushBots(appId, secret, false)
-
-	pushBots.ApplyEndpointOverride(testServer.URL + "/")
-
-	err := pushBots.Broadcast(platforms, msg, sound, badge, payload)
+	err := pushBots.Broadcast(pushbots.PlatformAll, msg, sound, badge, payload)
 
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-```
 
+```

@@ -71,7 +71,7 @@ func ExamplePushBots_Broadcast() {
 
 	pushBots := pushbots.NewPushBots(appId, secret, true)
 
-	err := pushBots.Broadcast(pushbots.PlatformIos, msg, sound, badge, payload)
+	err := pushBots.Broadcast(pushbots.PlatformAll, msg, sound, badge, payload)
 
 	if err != nil {
 		log.Fatal(err)
