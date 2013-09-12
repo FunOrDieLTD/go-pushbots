@@ -41,6 +41,10 @@ type PushBots struct {
 	endpoints map[string]pushBotRequest
 }
 
+type serverErrorResponse struct {
+	Message string `json:"message"`
+}
+
 // A struct to contain all arguments for a request
 type apiRequest struct {
 	Payload                 map[string]interface{} `json:"payload,omitempty"`
@@ -461,21 +465,17 @@ func checkAndReturn(content []byte, err error) error {
 	}
 
 	if len(content) > 0 {
-		var returnedObject interface{}
+		serverErr := new(serverErrorResponse)
+		err := json.Unmarshal(content, serverErr)
 
-		if err = json.Unmarshal(content, returnedObject); err != nil {
+		if err != nil {
 			return err
 		}
-		switch returnedObject.(type) {
-		default:
-			return errors.New("Could not parse server response")
-		case map[string]interface{}:
 
-			if returnedObject.(map[string]interface{})["error"] != nil {
-				return errors.New(returnedObject.(map[string]interface{})["error"].(string))
-			} else {
-				return errors.New("Could not parse server response")
-			}
+		if serverErr.Message == "" {
+			return errors.New("Got response from server but failed to parse")
+		} else {
+			return errors.New(serverErr.Message)
 		}
 	}
 	return nil

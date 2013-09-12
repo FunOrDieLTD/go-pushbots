@@ -101,6 +101,8 @@ func TestRegisterDevice(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -119,6 +121,8 @@ func TestUnregisteringDevice(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -139,6 +143,8 @@ func TestTagDevice(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -159,6 +165,8 @@ func TestUntagDevice(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -179,6 +187,8 @@ func TestGeo(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -199,6 +209,8 @@ func TestAddNotificationType(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -219,6 +231,8 @@ func TestRemoveNotificationType(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -243,6 +257,8 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -267,6 +283,8 @@ func TestSendPushToDevice(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -301,6 +319,8 @@ func TestBatch(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
+
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -322,6 +342,7 @@ func TestBadge(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -342,6 +363,7 @@ func TestRecordAnalytics(t *testing.T) {
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	defer testServer.Close()
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
@@ -355,21 +377,19 @@ func TestRecordAnalytics(t *testing.T) {
 
 func TestErrorHandling(t *testing.T) {
 	stats := "o"
-	shouldEqual := map[string]interface{}{
-		"token":    token,
-		"platform": PlatformIos,
-		"stats":    stats,
-	}
 
-	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
+	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(resp, `{"message":"An error"}`)
+	}))
+	defer testServer.Close()
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
 
 	err := pushBots.RecordAnalytics(token, PlatformIos, stats)
 
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("No error was returned")
 	}
 }
 
