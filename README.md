@@ -81,9 +81,6 @@ func main() {
 		"payload":  payload,
 	}
 
-	testServer := httptest.NewServer(http.HandlerFunc(testHandler(t, shouldEqual)))
-	defer testServer.Close()
-
 	pushBots := NewPushBots(appId, secret, false)
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")

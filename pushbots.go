@@ -1,10 +1,11 @@
-// pushbots contains a wrapper around pushbots REST api (https://pushbots.com/) to send Apple push notifications
-// and android push notifications
-// Please note that this is NOT an official library by pushbots
-// All code Copyright David Pallinder and Fun or die LTD
+// Copyright 2012 David Pallinder, Fun or die ltd. All rights reserved
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/* Package pushbots is an unoficiall API wrapper around pushbots (http://www.pushbots.com) REST api
+   Documentation about the API can be found at https://pushbots.com/developer/rest
+   Use it to send push notifications for both android and ios for fun and profit
+*/
 package pushbots
 
 import (
@@ -20,6 +21,7 @@ import (
 const (
 	PlatformIos     = "0"
 	PlatformAndroid = "1"
+	PlatformAll     = "3"
 )
 
 // Internal constants for keeping track of what endpoint to connect to
@@ -41,6 +43,7 @@ type PushBots struct {
 	endpoints map[string]pushBotRequest
 }
 
+// Used to store the response from the message instead of manually dealing with types
 type serverErrorResponse struct {
 	Message interface{} `json:"message"`
 }
@@ -233,15 +236,19 @@ func (pushbots *PushBots) RemoveNotificationType(token, platform, alias, notific
 }
 
 // Send a broadcast to multiple devices
-func (pushbots *PushBots) Broadcast(platforms []string, msg, sound, badge string, payload map[string]interface{}) error {
+func (pushbots *PushBots) Broadcast(platform string, msg, sound, badge string, payload map[string]interface{}) error {
 	var supportsIos, supportsAndroid bool
 
-	for _, platform := range platforms {
-		if platform != PlatformIos && platform != PlatformAndroid {
-			return errors.New("Platform neither IOS nor android")
-		} else if platform == PlatformIos {
+	platforms, err := generatePlatform(platform, true)
+
+	if err != nil {
+		return err
+	}
+
+	for _, val := range platforms.([]string) {
+		if val == PlatformIos {
 			supportsIos = true
-		} else if platform == PlatformAndroid {
+		} else if val == PlatformAndroid {
 			supportsAndroid = true
 		}
 	}
@@ -486,4 +493,20 @@ func checkAndReturn(content []byte, err error) error {
 		}
 	}
 	return nil
+}
+
+func generatePlatform(platform string, asArray bool) (interface{}, error) {
+	if asArray == false {
+		if platform != PlatformAll {
+			return platform, nil
+		} else {
+			return nil, errors.New("Platform all not supported")
+		}
+	} else {
+		if platform != PlatformAll {
+			return []string{platform}, nil
+		} else {
+			return []string{PlatformIos, PlatformAndroid}, nil
+		}
+	}
 }

@@ -1,3 +1,7 @@
+// Copyright 2012 David Pallinder, Fun or die ltd. All rights reserved
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package pushbots
 
 import (
@@ -246,7 +250,7 @@ func TestRemoveNotificationType(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	payload := map[string]interface{}{"a": "b"}
-	platforms := []string{PlatformIos}
+	platforms := []string{PlatformIos, PlatformAndroid}
 
 	shouldEqual := map[string]interface{}{
 		"platform": stringSliceToInterfaceSlice(platforms),
@@ -263,7 +267,7 @@ func TestBroadcast(t *testing.T) {
 
 	pushBots.ApplyEndpointOverride(testServer.URL + "/")
 
-	err := pushBots.Broadcast(platforms, msg, sound, badge, payload)
+	err := pushBots.Broadcast(PlatformAll, msg, sound, badge, payload)
 
 	if err != nil {
 		t.Fatal(err)
@@ -420,5 +424,79 @@ func TestCheckForArgErrorsWithAlias(t *testing.T) {
 
 	if err := checkForArgErrorsWithAlias(token, PlatformAndroid, alias); err != nil {
 		t.Fatal("Should have been true when passing correct arguments")
+	}
+}
+
+func TestGeneratePlatform(t *testing.T) {
+	t.Parallel()
+	platforms, err := generatePlatform(PlatformAndroid, false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.TypeOf(platforms).String() != "string" {
+		t.Fatal("Failed to return string")
+	}
+
+	if platforms.(string) != "1" {
+		t.Fatal("Failed to return correct platform")
+	}
+
+	platforms, err = generatePlatform(PlatformIos, false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.TypeOf(platforms).String() != "string" {
+		t.Fatal("Failed to return string")
+	}
+
+	if platforms.(string) != "0" {
+		t.Fatal("Failed to return string")
+	}
+
+	platforms, err = generatePlatform(PlatformIos, true)
+
+	if reflect.TypeOf(platforms).String() != "[]string" {
+		t.Fatal("Failed to return array")
+	}
+
+	if len(platforms.([]string)) == 0 {
+		t.Fatal("Array wasnt properly populated")
+	}
+
+	platform := platforms.([]string)[0]
+
+	if platform != PlatformIos {
+		t.Fatal("Failed to return correct platform")
+
+	}
+
+	platforms, err = generatePlatform(PlatformAll, false)
+
+	if err == nil {
+		t.Fatal("Failed to generate array when issuing platformall and no array")
+	}
+
+	platforms, err = generatePlatform(PlatformAll, true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if reflect.TypeOf(platforms).String() != "[]string" {
+		t.Fatal("Array not returned")
+	}
+
+	if len(platforms.([]string)) != 2 {
+		t.Fatal("Array wasnt properly populated")
+	}
+
+	for _, v := range platforms.([]string) {
+		if v != PlatformIos && v != PlatformAndroid {
+			t.Fatal("Wrong type in array")
+		}
 	}
 }
