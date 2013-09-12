@@ -16,15 +16,15 @@ import (
 	"strings"
 )
 
-// Holds a list of available end points
-var endpoints map[string]pushBotRequest
-var productionEndPointBase = "https://api.pushbots.com/"
-var testingEndpointBase = "127.0.0.1:31337/"
-
 // Constants for the different platforms supported
 const (
 	PlatformIos     = "0"
 	PlatformAndroid = "1"
+)
+
+// Internal constants for keeping track of what endpoint to connect to
+const (
+	productionEndPoint = "https://api.pushbots.com/"
 )
 
 // Simply holds an endpoint and what http verb to use when connecting to that endpoint
@@ -35,10 +35,10 @@ type pushBotRequest struct {
 
 // Holds the appid and app secret for use in requests
 type PushBots struct {
-	AppId   string
-	Secret  string
-	Debug   bool
-	Testing bool
+	AppId     string
+	Secret    string
+	Debug     bool
+	endpoints map[string]pushBotRequest
 }
 
 // A struct to contain all arguments for a request
@@ -62,34 +62,39 @@ type apiRequest struct {
 	BadgeCount              *int                   `json:"setbadgecount,omitempty"` //Hack to avoid badgecount being omitted if it's value is 0
 }
 
-func NewPushbots(appId string, secret string, debug, testing bool) PushBots {
-	pushBots := PushBots{AppId: appId, Secret: secret, Debug: debug, Testing: testing}
-	pushBots.initializeEndpoints()
+// Create a new pushbots object
+func NewPushBots(appId string, secret string, debug bool) PushBots {
+	pushBots := PushBots{AppId: appId, Secret: secret, Debug: debug}
 	return pushBots
 }
 
-// Initializes all known endpoints
-func (pushBots *PushBots) initializeEndpoints() {
-	endPointBase := productionEndPointBase
+// Override the base endpoint used to construct the API urls
+func (pushBots *PushBots) ApplyEndpointOverride(endpointOverride string) {
+	pushBots.initializeEndpoints(endpointOverride)
+}
 
-	if pushBots.Testing == true {
-		endPointBase = testingEndpointBase
+// Initializes all known endpoints
+func (pushBots *PushBots) initializeEndpoints(endpointOverride string) {
+	endpointBase := productionEndPoint
+
+	if endpointOverride != "" {
+		endpointBase = endpointOverride
 	}
 
-	endpoints = map[string]pushBotRequest{
-		"registerdevice":         pushBotRequest{Endpoint: endPointBase + "deviceToken", HttpVerb: "PUT"},
-		"unregisterdevice":       pushBotRequest{Endpoint: endPointBase + "deviceToken/del", HttpVerb: "PUT"},
-		"alias":                  pushBotRequest{Endpoint: endPointBase + "alias", HttpVerb: "PUT"},
-		"tagdevice":              pushBotRequest{Endpoint: endPointBase + "tag", HttpVerb: "PUT"},
-		"untagdevice":            pushBotRequest{Endpoint: endPointBase + "tag/del", HttpVerb: "PUT"},
-		"geos":                   pushBotRequest{Endpoint: endPointBase + "geo", HttpVerb: "PUT"},
-		"addnotificationtype":    pushBotRequest{Endpoint: endPointBase + "activate", HttpVerb: "PUT"},
-		"removenotificationtype": pushBotRequest{Endpoint: endPointBase + "deactivate", HttpVerb: "PUT"},
-		"broadcast":              pushBotRequest{Endpoint: endPointBase + "push/all", HttpVerb: "POST"},
-		"pushone":                pushBotRequest{Endpoint: endPointBase + "push/one", HttpVerb: "POST"},
-		"batch":                  pushBotRequest{Endpoint: endPointBase + "push/all", HttpVerb: "POST"},
-		"badge":                  pushBotRequest{Endpoint: endPointBase + "badge", HttpVerb: "PUT"},
-		"recordanalytics":        pushBotRequest{Endpoint: endPointBase + "stats", HttpVerb: "PUT"},
+	pushBots.endpoints = map[string]pushBotRequest{
+		"registerdevice":         pushBotRequest{Endpoint: endpointBase + "deviceToken", HttpVerb: "PUT"},
+		"unregisterdevice":       pushBotRequest{Endpoint: endpointBase + "deviceToken/del", HttpVerb: "PUT"},
+		"alias":                  pushBotRequest{Endpoint: endpointBase + "alias", HttpVerb: "PUT"},
+		"tagdevice":              pushBotRequest{Endpoint: endpointBase + "tag", HttpVerb: "PUT"},
+		"untagdevice":            pushBotRequest{Endpoint: endpointBase + "tag/del", HttpVerb: "PUT"},
+		"geos":                   pushBotRequest{Endpoint: endpointBase + "geo", HttpVerb: "PUT"},
+		"addnotificationtype":    pushBotRequest{Endpoint: endpointBase + "activate", HttpVerb: "PUT"},
+		"removenotificationtype": pushBotRequest{Endpoint: endpointBase + "deactivate", HttpVerb: "PUT"},
+		"broadcast":              pushBotRequest{Endpoint: endpointBase + "push/all", HttpVerb: "POST"},
+		"pushone":                pushBotRequest{Endpoint: endpointBase + "push/one", HttpVerb: "POST"},
+		"batch":                  pushBotRequest{Endpoint: endpointBase + "push/all", HttpVerb: "POST"},
+		"badge":                  pushBotRequest{Endpoint: endpointBase + "badge", HttpVerb: "PUT"},
+		"recordanalytics":        pushBotRequest{Endpoint: endpointBase + "stats", HttpVerb: "PUT"},
 	}
 }
 
@@ -105,17 +110,17 @@ func (pushbots *PushBots) RegisterDevice(token, platform, lat, lng string, notif
 		Lat:      lat,
 		Lng:      lng,
 		Tags:     tags,
+		Alias:    alias,
 	}
 
 	if notificationTypes != nil && len(notificationTypes) > 0 {
 		args.NotificationType = notificationTypes
 	}
 
-	return pushbots.sendToEndpoint("registerdevice", args)
+	return checkAndReturn(pushbots.sendToEndpoint("registerdevice", args))
 }
 
 // Unregister a device
-// Url:
 func (pushbots *PushBots) UnregisterDevice(token, platform string) error {
 
 	if err := checkForArgErrors(token, platform); err != nil {
@@ -127,11 +132,11 @@ func (pushbots *PushBots) UnregisterDevice(token, platform string) error {
 		Platform: platform,
 	}
 
-	return pushbots.sendToEndpoint("unregisterdevice", args)
+	return checkAndReturn(pushbots.sendToEndpoint("unregisterdevice", args))
 }
 
 // Add a tag to a device
-func (pushbots *PushBots) TagDevice(token, alias, platform, tag string) error {
+func (pushbots *PushBots) TagDevice(token, platform, alias, tag string) error {
 
 	if err := checkForArgErrorsWithAlias(token, platform, alias); err != nil {
 		fmt.Println(err)
@@ -145,11 +150,11 @@ func (pushbots *PushBots) TagDevice(token, alias, platform, tag string) error {
 		Tag:      tag,
 	}
 
-	return pushbots.sendToEndpoint("tagdevice", args)
+	return checkAndReturn(pushbots.sendToEndpoint("tagdevice", args))
 }
 
 // Remove a tag from a device
-func (pushbots *PushBots) UnTagDevice(token, alias, platform, tag string) error {
+func (pushbots *PushBots) UnTagDevice(token, platform, alias, tag string) error {
 	if err := checkForArgErrorsWithAlias(token, platform, alias); err != nil {
 		return err
 	}
@@ -161,7 +166,7 @@ func (pushbots *PushBots) UnTagDevice(token, alias, platform, tag string) error 
 		Tag:      tag,
 	}
 
-	return pushbots.sendToEndpoint("untagdevice", args)
+	return checkAndReturn(pushbots.sendToEndpoint("untagdevice", args))
 }
 
 // Add geo information to a device
@@ -181,11 +186,11 @@ func (pushbots *PushBots) Geo(token, platform, lat, lng string) error {
 		Lng:      lng,
 	}
 
-	return pushbots.sendToEndpoint("geos", args)
+	return checkAndReturn(pushbots.sendToEndpoint("geos", args))
 }
 
 // Adds a notification type to a device
-func (pushbots *PushBots) AddNotificationType(token, alias, platform, notificationType string) error {
+func (pushbots *PushBots) AddNotificationType(token, platform, alias, notificationType string) error {
 	if err := checkForArgErrorsWithAlias(token, platform, alias); err != nil {
 		return err
 	}
@@ -201,11 +206,11 @@ func (pushbots *PushBots) AddNotificationType(token, alias, platform, notificati
 		NotificationType: notificationType,
 	}
 
-	return pushbots.sendToEndpoint("addnotificationtype", args)
+	return checkAndReturn(pushbots.sendToEndpoint("addnotificationtype", args))
 }
 
 // Removes a notification type from a device
-func (pushbots *PushBots) RemoveNotificationType(token, alias, platform, notificationType string) error {
+func (pushbots *PushBots) RemoveNotificationType(token, platform, alias, notificationType string) error {
 	if err := checkForArgErrorsWithAlias(token, platform, alias); err != nil {
 		return err
 	}
@@ -220,7 +225,7 @@ func (pushbots *PushBots) RemoveNotificationType(token, alias, platform, notific
 		Platform:         platform,
 		NotificationType: notificationType,
 	}
-	return pushbots.sendToEndpoint("removenotificationtype", args)
+	return checkAndReturn(pushbots.sendToEndpoint("removenotificationtype", args))
 }
 
 // Send a broadcast to multiple devices
@@ -265,7 +270,7 @@ func (pushbots *PushBots) Broadcast(platforms []string, msg, sound, badge string
 		Payload:  payload,
 	}
 
-	return pushbots.sendToEndpoint("broadcast", args)
+	return checkAndReturn(pushbots.sendToEndpoint("broadcast", args))
 }
 
 // Send a push to one device
@@ -298,7 +303,7 @@ func (pushbots *PushBots) SendPushToDevice(platform, token, msg, sound, badge st
 		Badge:    badge,
 		Payload:  payload,
 	}
-	return pushbots.sendToEndpoint("broadcast", args)
+	return checkAndReturn(pushbots.sendToEndpoint("broadcast", args))
 }
 
 // Batch push notifications to matching devices
@@ -337,7 +342,7 @@ func (pushbots *PushBots) Batch(platform, msg, sound, badge string, tags, except
 		ExceptNotificationTypes: exceptNotificationTypes,
 	}
 
-	return pushbots.sendToEndpoint("broadcast", args)
+	return checkAndReturn(pushbots.sendToEndpoint("broadcast", args))
 
 }
 
@@ -352,7 +357,7 @@ func (pushbots *PushBots) Badge(token, platform string, badgeCount int) error {
 		Platform:   platform,
 		BadgeCount: &badgeCount,
 	}
-	return pushbots.sendToEndpoint("badge", args)
+	return checkAndReturn(pushbots.sendToEndpoint("badge", args))
 }
 
 // Record analytics for a device
@@ -366,21 +371,26 @@ func (pushbots *PushBots) RecordAnalytics(token, platform, stats string) error {
 		Platform: platform,
 		Stats:    stats,
 	}
-	return pushbots.sendToEndpoint("recordanalytics", args)
+	return checkAndReturn(pushbots.sendToEndpoint("recordanalytics", args))
 }
 
 // Prepare and send the request to the endpoint
-func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error {
-	pushbotEndpoint, available := endpoints[endpoint]
+func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) ([]byte, error) {
+
+	if pushbots.endpoints == nil {
+		pushbots.initializeEndpoints("")
+	}
+
+	pushbotEndpoint, available := pushbots.endpoints[endpoint]
 
 	if available == false {
-		return errors.New("Could not find endpoint")
+		return []byte{}, errors.New("Could not find endpoint")
 	}
 
 	jsonPayload, err := json.Marshal(args)
 
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	if pushbots.Debug == true {
@@ -391,11 +401,11 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 	req, err := http.NewRequest(pushbotEndpoint.HttpVerb, pushbotEndpoint.Endpoint, strings.NewReader(string(jsonPayload)))
 
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
 	if pushbots.AppId == "" || pushbots.Secret == "" {
-		return errors.New("Appid and/or secret key not set")
+		return []byte{}, errors.New("Appid and/or secret key not set")
 	}
 
 	req.Header.Set("x-pushbots-appid", pushbots.AppId)
@@ -406,6 +416,10 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 
 	resp, err := client.Do(req)
 
+	if err != nil {
+		return []byte{}, err
+	}
+
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
@@ -414,21 +428,15 @@ func (pushbots *PushBots) sendToEndpoint(endpoint string, args apiRequest) error
 		fmt.Println("Response content", string(body))
 	}
 
-	if resp.StatusCode != 200 {
-
-		if err != nil {
-			return err
-		}
-
-		return errors.New(string(body))
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		return body, errors.New("Error response from server")
 	}
-	return err
+
+	return body, err
 }
 
 // Checks for errors within arguments
-func checkForArgErrors(tokenInterface interface{}, platform string) error {
-	token := tokenInterface.(string)
-
+func checkForArgErrors(token string, platform string) error {
 	if token == "" {
 		return errors.New("Token needs to be a device token")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
@@ -438,14 +446,37 @@ func checkForArgErrors(tokenInterface interface{}, platform string) error {
 }
 
 // Checks for errors when either a token or an alias is required
-func checkForArgErrorsWithAlias(tokenInterface interface{}, platform, alias string) error {
-
-	token := tokenInterface.(string)
+func checkForArgErrorsWithAlias(token string, platform, alias string) error {
 	if token == "" && alias == "" {
 		return errors.New("Either token or alias need to be set")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
 		return errors.New("Platform must be either PlatformIos or PlatformAndroid")
 	}
+	return nil
+}
 
+func checkAndReturn(content []byte, err error) error {
+	if err != nil {
+		return err
+	}
+
+	if len(content) > 0 {
+		var returnedObject interface{}
+
+		if err = json.Unmarshal(content, returnedObject); err != nil {
+			return err
+		}
+		switch returnedObject.(type) {
+		default:
+			return errors.New("Could not parse server response")
+		case map[string]interface{}:
+
+			if returnedObject.(map[string]interface{})["error"] != nil {
+				return errors.New(returnedObject.(map[string]interface{})["error"].(string))
+			} else {
+				return errors.New("Could not parse server response")
+			}
+		}
+	}
 	return nil
 }
