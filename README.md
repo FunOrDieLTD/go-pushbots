@@ -3,7 +3,7 @@
 
 ## A pushbots API wrapper for go
 
-A unofficial implementation around Pushbots service for sending APN in golang. 
+A unofficial implementation around Pushbots service for sending push notifications (ios, android) in golang. 
 
 ### Documentation
 http://godoc.org/github.com/FunOrDieLTD/go-pushbots
@@ -22,7 +22,6 @@ http://godoc.org/github.com/FunOrDieLTD/go-pushbots
 	var appId string = "your app id"
 	var secret string = "your secret"
 
-	deviceToken := "Your device token"
 	pushBots := pushbots.NewPushBots(appId, secret, true) // true enables debugging
 	deviceToken = "Your device token"
 
@@ -38,7 +37,6 @@ http://godoc.org/github.com/FunOrDieLTD/go-pushbots
 	var appId string = "your app id"
 	var secret string = "your secret"
 
-	deviceToken := "Your device token"
 	pushBots := pushbots.NewPushBots(appId, secret, true) // true enables debugging
 	deviceToken = "Your device token"
 	tag := "your_new_tag"
