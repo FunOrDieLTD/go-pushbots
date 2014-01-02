@@ -314,7 +314,8 @@ func (pushbots *PushBots) SendPushToDevice(platform, token, msg, sound, badge st
 		Badge:    badge,
 		Payload:  payload,
 	}
-	return checkAndReturn(pushbots.sendToEndpoint("broadcast", args))
+
+	return checkAndReturn(pushbots.sendToEndpoint("push/one", args))
 }
 
 // Batch push notifications to matching devices
@@ -353,8 +354,7 @@ func (pushbots *PushBots) Batch(platform, msg, sound, badge string, tags, except
 		ExceptNotificationTypes: exceptNotificationTypes,
 	}
 
-	return checkAndReturn(pushbots.sendToEndpoint("broadcast", args))
-
+	return checkAndReturn(pushbots.sendToEndpoint("batch", args))
 }
 
 // Set the badgecount for a device
@@ -461,7 +461,9 @@ func checkForArgErrorsWithAlias(token string, platform, alias string) error {
 	if token == "" && alias == "" {
 		return errors.New("Either token or alias need to be set")
 	} else if platform != PlatformIos && platform != PlatformAndroid {
+		fmt.Println("Fick platform ", platform)
 		return errors.New("Platform must be either PlatformIos or PlatformAndroid")
+
 	}
 	return nil
 }
